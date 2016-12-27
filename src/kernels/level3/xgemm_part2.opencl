@@ -64,7 +64,7 @@ inline realM MultiplyAddVector(realM cvec, const realM avec, const real bval) {
 }
 
 // Performs the actual computation: Cpm += Apm * Bpm
-inline void MultiplyAccumulate(realM cpm[NWI][MWI/VWM], realM apm[MWI/VWM], realN bpm[NWI/VWN]) {
+inline void MultiplyAccumulate(realM** cpm, realM apm[MWI/VWM], realN bpm[NWI/VWN]) {
   #pragma unroll
   for (int ni=0; ni<NWI/VWN; ++ni) {
     #pragma unroll
@@ -115,7 +115,7 @@ inline void MultiplyAccumulate(realM cpm[NWI][MWI/VWM], realM apm[MWI/VWM], real
 
 // Merges the results in Cpm with the global array in Cgm. This also performs the multiplication
 // with the constants: Cgm = alpha*A*B + beta*Cgm = alpha*Cpm + beta*Cgm
-inline void StoreResults(__global realM* cgm, realM cpm[NWI][MWI/VWM], const int kSizeM,
+inline void StoreResults(__global realM* cgm, realM** cpm, const int kSizeM,
                          const real alpha, const real beta) {
   #pragma unroll
   for (int ni=0; ni<NWI; ++ni) {
@@ -186,7 +186,7 @@ inline void StoreResults(__global realM* cgm, realM cpm[NWI][MWI/VWM], const int
 // Main body of the matrix-multiplication algorithm. It calls the (inlined) functions above.
 inline void XgemmBody(const int kSizeM, const int kSizeN, const int kSizeK,
                       const __global realM* restrict agm, const __global realN* restrict bgm,
-                      __global realM* cgm, realM cpm[NWI][MWI/VWM]
+                      __global realM* cgm, realM** cpm
                       #if SA == 1 && SB == 1
                         , __local realM* alm, __local realN* blm
                       #elif SA == 1
@@ -373,17 +373,17 @@ void Xgemm(const int kSizeM, const int kSizeN, const int kSizeK,
   // Computes the matrix-multiplication and stores the result in register memory
   realM cpm[NWI][MWI/VWM];
   #if SA == 1 && SB == 1
-    XgemmBody(kSizeM, kSizeN, kSizeK, agm, bgm, cgm, cpm, alm, blm);
+    XgemmBody(kSizeM, kSizeN, kSizeK, agm, bgm, cgm, (realM**)cpm, alm, blm);
   #elif SA == 1
-    XgemmBody(kSizeM, kSizeN, kSizeK, agm, bgm, cgm, cpm, alm);
+    XgemmBody(kSizeM, kSizeN, kSizeK, agm, bgm, cgm, (realM**)cpm, alm);
   #elif SB == 1
-    XgemmBody(kSizeM, kSizeN, kSizeK, agm, bgm, cgm, cpm, blm);
+    XgemmBody(kSizeM, kSizeN, kSizeK, agm, bgm, cgm, (realM**)cpm, blm);
   #else
-    XgemmBody(kSizeM, kSizeN, kSizeK, agm, bgm, cgm, cpm);
+    XgemmBody(kSizeM, kSizeN, kSizeK, agm, bgm, cgm, (realM**)cpm);
   #endif
 
   // Stores an MWG * NWG tile of results and performs the multiplication with alpha and beta
-  StoreResults(cgm, cpm, kSizeM, alpha, beta);
+  StoreResults(cgm, (realM**)cpm, kSizeM, alpha, beta);
 }
 
 #endif

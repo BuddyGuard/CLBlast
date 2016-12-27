@@ -135,7 +135,7 @@ R"(
 // =================================================================================================
 
 // Initializes the accumulation registers to zero
-inline void InitAccRegisters(realM cpm[NWI][MWI/VWM]) {
+inline void InitAccRegisters(realM** cpm) {
   #pragma unroll
   for (int mi=0; mi<MWI/VWM; ++mi) {
     #pragma unroll
